@@ -28,6 +28,16 @@ jobs:
           cp -R $GITHUB_WORKSPACE /Users/Shared/
           mv /Users/Shared/$(basename $GITHUB_WORKSPACE) /Users/Shared/telegram-ios
 
+      - name: Check Bazel checksum
+        run: |
+          set -e
+          curl -fL https://github.com/bazelbuild/bazel/releases/download/8.4.2/bazel-8.4.2-darwin-arm64 -o /tmp/bazel
+          echo "Downloaded Bazel SHA256:"
+          shasum -a 256 /tmp/bazel
+          echo "Downloaded file information:"
+          file /tmp/bazel
+          ls -lh /tmp/bazel
+
       - name: Build the App
         run: |
           set -x
@@ -62,16 +72,29 @@ jobs:
           OUTPUT_PATH="build/artifacts"
           rm -rf "$OUTPUT_PATH"
           mkdir -p "$OUTPUT_PATH"
+
+          found_ipa=false
           for f in bazel-out/applebin_ios-ios_arm*-opt-ST-*/bin/Telegram/Telegram.ipa; do
-            cp "$f" $OUTPUT_PATH/
+            if [ -f "$f" ]; then
+              cp "$f" "$OUTPUT_PATH/"
+              found_ipa=true
+            fi
           done
 
+          if [ "$found_ipa" = false ]; then
+            echo "ERROR: Telegram.ipa was not found"
+            exit 1
+          fi
+
           # collect dsym
-          mkdir -p build/DSYMs
+          mkdir -p build/DSyms
           for f in bazel-out/applebin_ios-ios_arm*-opt-ST-*/bin/Telegram/*.dSYM; do
-            cp -R "$f" build/DSYMs/
+            if [ -d "$f" ]; then
+              cp -R "$f" build/DSyms/
+            fi
           done
-          zip -r "./$OUTPUT_PATH/Telegram.DSYMs.zip" build/DSYMs 1>/dev/null
+
+          zip -r "./$OUTPUT_PATH/Telegram.DSYMs.zip" build/DSyms 1>/dev/null
 
       - name: Create Release
         id: create_release
@@ -87,7 +110,7 @@ jobs:
           prerelease: false
 
       - name: Upload Release IPA
-        id: upload-release-ipa 
+        id: upload-release-ipa
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -98,7 +121,7 @@ jobs:
           asset_content_type: application/zip
 
       - name: Upload Release DSYM
-        id: upload-release-dsym 
+        id: upload-release-dsym
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
