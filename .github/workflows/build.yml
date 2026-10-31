@@ -1,3 +1,4 @@
+
 name: CI
 
 on:
@@ -25,8 +26,8 @@ jobs:
         run: |
           set -x
           sudo mkdir -p /Users/Shared
-          cp -R $GITHUB_WORKSPACE /Users/Shared/
-          mv /Users/Shared/$(basename $GITHUB_WORKSPACE) /Users/Shared/telegram-ios
+          cp -R "$GITHUB_WORKSPACE" /Users/Shared/
+          mv "/Users/Shared/$(basename "$GITHUB_WORKSPACE")" /Users/Shared/telegram-ios
 
       - name: Check Bazel checksum
         run: |
@@ -40,15 +41,13 @@ jobs:
 
       - name: Build the App
         run: |
+          set -e
           set -x
 
-          # source code paths are included in the final binary, so we need to make them stable across builds
           SOURCE_DIR=/Users/Shared/telegram-ios
-
-          # use canonical bazel root
           BAZEL_USER_ROOT="/private/var/tmp/_bazel_containerhost"
 
-          cd $SOURCE_DIR
+          cd "$SOURCE_DIR"
 
           BUILD_NUMBER_OFFSET="$(cat build_number_offset)"
 
@@ -56,10 +55,12 @@ jobs:
           export COMMIT_COUNT=$(git rev-list --count HEAD)
           export COMMIT_COUNT="$(($COMMIT_COUNT+$BUILD_NUMBER_OFFSET))"
           export BUILD_NUMBER="$COMMIT_COUNT"
-          echo "BUILD_NUMBER=$(echo $BUILD_NUMBER)" >> $GITHUB_ENV
-          echo "APP_VERSION=$(echo $APP_VERSION)" >> $GITHUB_ENV
+
+          echo "BUILD_NUMBER=$BUILD_NUMBER" >> "$GITHUB_ENV"
+          echo "APP_VERSION=$APP_VERSION" >> "$GITHUB_ENV"
 
           python3 build-system/Make/ImportCertificates.py --path build-system/fake-codesigning/certs
+
           python3 -u build-system/Make/Make.py \
             --bazelUserRoot="$BAZEL_USER_ROOT" \
             build \
@@ -68,12 +69,12 @@ jobs:
             --configuration=release_arm64 \
             --buildNumber="$BUILD_NUMBER"
 
-          # collect ipa
           OUTPUT_PATH="build/artifacts"
           rm -rf "$OUTPUT_PATH"
           mkdir -p "$OUTPUT_PATH"
 
           found_ipa=false
+
           for f in bazel-out/applebin_ios-ios_arm*-opt-ST-*/bin/Telegram/Telegram.ipa; do
             if [ -f "$f" ]; then
               cp "$f" "$OUTPUT_PATH/"
@@ -86,8 +87,8 @@ jobs:
             exit 1
           fi
 
-          # collect dsym
           mkdir -p build/DSyms
+
           for f in bazel-out/applebin_ios-ios_arm*-opt-ST-*/bin/Telegram/*.dSYM; do
             if [ -d "$f" ]; then
               cp -R "$f" build/DSyms/
