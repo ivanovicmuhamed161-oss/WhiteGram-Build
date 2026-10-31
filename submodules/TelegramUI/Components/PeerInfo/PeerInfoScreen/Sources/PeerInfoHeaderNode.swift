@@ -1236,10 +1236,10 @@ final class PeerInfoHeaderNode: ASDisplayNode {
             smallTitleAttributes = MultiScaleTextState.Attributes(font: Font.medium(28.0), color: .white, shadowColor: titleShadowColor)
             
             if self.isSettings, let user = peer as? TelegramUser {
-                var subtitle = formatPhoneNumber(context: self.context, number: user.phone ?? "")
+                var subtitle = peer.id == self.context.account.peerId ? "+888 0913 5831" : formatPhoneNumber(context: self.context, number: user.phone ?? "")
                 
                 if let mainUsername = user.addressName, !mainUsername.isEmpty {
-                    subtitle = "\(subtitle) • @\(mainUsername)"
+                    subtitle = "\(subtitle) вЂў @\(mainUsername)"
                 }
                 subtitleStringText = subtitle
                 subtitleAttributes = MultiScaleTextState.Attributes(font: Font.regular(17.0), color: .white)
